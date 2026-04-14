@@ -1,148 +1,127 @@
-import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { runReview, selectDirectory } from "../lib/wails";
+import { selectDirectory } from "../lib/wails";
 import type { Config, ReviewParams, ReviewResult } from "../types";
+import { StatusPill, WorkbenchField, WorkbenchSection } from "../components/workbench";
 
 interface ReviewPageProps {
   config: Config;
+  params: ReviewParams;
+  onParamsChange: (params: ReviewParams) => void;
+  running: boolean;
+  message: string;
+  result: ReviewResult | null;
+  onRun: () => void | Promise<void>;
 }
 
-const initialParams: ReviewParams = {
-  repo: ".",
-  base: "origin/develop",
-  head: "HEAD",
-  out_dir: "./deltascope-reports",
-  api_key: "",
-  api_base: "",
-  model: "",
-};
-
-export default function ReviewPage({ config }: ReviewPageProps) {
-  const [params, setParams] = useState<ReviewParams>(initialParams);
-  const [running, setRunning] = useState(false);
-  const [message, setMessage] = useState("等待开始评审");
-  const [result, setResult] = useState<ReviewResult | null>(null);
+export default function ReviewPage({ config, params, onParamsChange, running, message, result, onRun }: ReviewPageProps) {
 
   async function chooseRepo() {
     const dir = await selectDirectory();
     if (dir) {
-      setParams((current) => ({ ...current, repo: dir }));
+      onParamsChange({ ...params, repo: dir });
     }
   }
 
   async function chooseOutDir() {
     const dir = await selectDirectory();
     if (dir) {
-      setParams((current) => ({ ...current, out_dir: dir }));
-    }
-  }
-
-  async function handleRun() {
-    setRunning(true);
-    setMessage("正在执行 Review，请稍候...");
-    try {
-      const nextResult = await runReview({
-        ...params,
-        api_key: params.api_key || config.api_key,
-        api_base: params.api_base || config.api_base,
-        model: params.model || config.model,
-      });
-      setResult(nextResult);
-      setMessage("Review 执行完成");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Review 执行失败");
-    } finally {
-      setRunning(false);
+      onParamsChange({ ...params, out_dir: dir });
     }
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-      <div className="space-y-4 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-50">Review</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            对比两个分支或提交的差异，调用已保存的模型配置生成影响分析和测试建议。
-          </p>
-        </div>
+    <section className="workspace-layout workspace-layout--viewer">
+      <aside className="workspace-side workspace-side--form">
+        <WorkbenchSection title="评审设置" description="指定仓库、对比范围和输出目录。">
+          <WorkbenchField
+            label="仓库路径"
+            value={params.repo}
+            onChange={(value) => onParamsChange({ ...params, repo: value })}
+            actionLabel="选择目录"
+            onAction={chooseRepo}
+          />
 
-        <Field label="仓库路径" value={params.repo} onChange={(value) => setParams({ ...params, repo: value })} actionLabel="选择目录" onAction={chooseRepo} />
-        <Field label="Base" value={params.base} onChange={(value) => setParams({ ...params, base: value })} />
-        <Field label="Head" value={params.head} onChange={(value) => setParams({ ...params, head: value })} />
-        <Field label="输出目录" value={params.out_dir} onChange={(value) => setParams({ ...params, out_dir: value })} actionLabel="选择目录" onAction={chooseOutDir} />
-
-        <details className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300">
-          <summary className="cursor-pointer font-medium text-slate-200">覆盖默认模型配置</summary>
-          <div className="mt-4 space-y-4">
-            <Field label="API Key" value={params.api_key} onChange={(value) => setParams({ ...params, api_key: value })} />
-            <Field label="API Base URL" value={params.api_base} onChange={(value) => setParams({ ...params, api_base: value })} />
-            <Field label="Model" value={params.model} onChange={(value) => setParams({ ...params, model: value })} />
+          <div className="field-grid field-grid--two">
+            <WorkbenchField label="Base" value={params.base} onChange={(value) => onParamsChange({ ...params, base: value })} />
+            <WorkbenchField label="Head" value={params.head} onChange={(value) => onParamsChange({ ...params, head: value })} />
           </div>
-        </details>
 
-        <button
-          type="button"
-          onClick={handleRun}
-          disabled={running}
-          className="w-full rounded-2xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {running ? "评审中..." : "运行评审"}
-        </button>
+          <WorkbenchField
+            label="输出目录"
+            value={params.out_dir}
+            onChange={(value) => onParamsChange({ ...params, out_dir: value })}
+            actionLabel="选择目录"
+            onAction={chooseOutDir}
+          />
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-sm text-slate-300">
-          {message}
-        </div>
-      </div>
+          <details className="config-disclosure">
+            <summary>覆盖默认模型配置</summary>
+            <div className="disclosure-body">
+              <WorkbenchField
+                label="API Key"
+                type="password"
+                value={params.api_key}
+                onChange={(value) => onParamsChange({ ...params, api_key: value })}
+              />
+              <WorkbenchField
+                label="API Base URL"
+                value={params.api_base}
+                onChange={(value) => onParamsChange({ ...params, api_base: value })}
+              />
+              <WorkbenchField label="Model" value={params.model} onChange={(value) => onParamsChange({ ...params, model: value })} />
+            </div>
+          </details>
 
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
-        <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-          <span>输出目录：{result?.output_dir ?? "-"}</span>
-          <span>文件：{result?.review_path ?? "-"}</span>
-        </div>
-
-        {result?.review_markdown ? (
-          <article className="prose prose-invert max-w-none prose-headings:text-slate-100 prose-p:text-slate-300 prose-strong:text-slate-100 prose-code:text-sky-300">
-            <ReactMarkdown>{result.review_markdown}</ReactMarkdown>
-          </article>
-        ) : (
-          <div className="flex min-h-[720px] items-center justify-center rounded-2xl border border-dashed border-slate-700 bg-slate-950/70 text-sm text-slate-500">
-            运行后将在这里展示 review.md
+          <div className="action-row">
+            <button type="button" onClick={onRun} disabled={running} className="action-button action-button--primary">
+              {running ? "评审中..." : "开始 Review"}
+            </button>
+            <div className="feedback-line">
+              <StatusPill tone={running ? "running" : result ? "ready" : "neutral"}>
+                {running ? "运行中" : result ? "已完成" : "待执行"}
+              </StatusPill>
+              <span>{message}</span>
+            </div>
           </div>
-        )}
+        </WorkbenchSection>
+      </aside>
+
+      <div className="workspace-main workspace-main--viewer">
+        <section className="surface-card viewer-panel viewer-panel--wide">
+          <div className="side-panel-header">
+            <h2>报告</h2>
+            <StatusPill tone={result?.review_markdown ? "ready" : "neutral"}>
+              {result?.review_markdown ? "可阅读" : "暂无结果"}
+            </StatusPill>
+          </div>
+
+          <dl className="summary-rows summary-rows--compact">
+            <div className="summary-row">
+              <dt>输出目录</dt>
+              <dd>{result?.output_dir ?? params.out_dir}</dd>
+            </div>
+            <div className="summary-row">
+              <dt>文件</dt>
+              <dd>{result?.review_path ?? "-"}</dd>
+            </div>
+            <div className="summary-row">
+              <dt>默认模型</dt>
+              <dd>{config.model || "未设置"}</dd>
+            </div>
+          </dl>
+
+          {result?.review_markdown ? (
+            <article className="report-markdown">
+              <ReactMarkdown>{result.review_markdown}</ReactMarkdown>
+            </article>
+          ) : (
+            <div className="empty-state">
+              <h3>还没有报告</h3>
+              <p>执行一次 Review 后，这里会直接显示 `review.md`。</p>
+            </div>
+          )}
+        </section>
       </div>
     </section>
-  );
-}
-
-interface FieldProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  actionLabel?: string;
-  onAction?: () => void;
-}
-
-function Field({ label, value, onChange, actionLabel, onAction }: FieldProps) {
-  return (
-    <label className="space-y-2">
-      <span className="text-sm font-medium text-slate-300">{label}</span>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none transition focus:border-sky-400"
-        />
-        {actionLabel && onAction ? (
-          <button
-            type="button"
-            onClick={onAction}
-            className="shrink-0 rounded-2xl border border-slate-700 px-4 py-3 text-sm text-slate-200 transition hover:border-sky-400 hover:text-white"
-          >
-            {actionLabel}
-          </button>
-        ) : null}
-      </div>
-    </label>
   );
 }
