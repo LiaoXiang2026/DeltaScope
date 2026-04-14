@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>缺陷看板</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --brand: #2563eb;
+      --brand-soft: #dbeafe;
+      --shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+      color: #fff;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+    .hero-meta {
+      font-size: 15px;
+      color: rgba(255,255,255,0.84);
+      margin-bottom: 10px;
+    }
+    .hero-note {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.14);
+      font-size: 13px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+    .trend-card {
+      margin-bottom: 20px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .section-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chart-shell {
+      border: 1px solid #e5edf8;
+      border-radius: 16px;
+      padding: 16px;
+      background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      min-height: 300px;
+    }
+    canvas {
+      width: 100%;
+      height: 260px;
+      display: block;
+    }
+    .empty-block {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 16px 0;
+    }
+    .bar-list { display: grid; gap: 14px; }
+    .bar-item { display: grid; gap: 8px; }
+    .bar-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .bar-label {
+      font-weight: 600;
+      word-break: break-word;
+    }
+    .bar-value {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .bar-subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .bar-track {
+      height: 10px;
+      background: #e8eef9;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+    }
+    @media (max-width: 720px) {
+      .page { padding: 18px 14px 28px; }
+      .hero { padding: 22px; border-radius: 20px; }
+      .hero h1 { font-size: 26px; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <h1>缺陷看板</h1>
+      <div class="hero-meta">统计范围：__SINCE__ ~ __UNTIL__</div>
+      <div class="hero-note">按 Bug 去重统计，同任务号多次提交仅计 1 个 Bug</div>
+    </header>
+
+    <section class="card trend-card">
+      <div class="section-head">
+        <h2>扫描范围内缺陷趋势</h2>
+        <span>按实际扫描范围自动聚合</span>
+      </div>
+      <div class="chart-shell" id="trend-shell">
+        <canvas id="trend-chart" width="1040" height="320"></canvas>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <div class="section-head">
+          <h2>最容易出问题的模块</h2>
+          <span>按 Bug 数统计</span>
+        </div>
+        __MODULE_BARS__
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>重复修复信号</h2>
+          <span>按跨日期重复修复的任务号统计</span>
+        </div>
+        __REPEAT_TASK_BARS__
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>修复 Bug 最多的人</h2>
+          <span>按唯一 Bug 数统计</span>
+        </div>
+        __FIXER_BARS__
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const trendLabels = __TREND_LABELS_JSON__;
+    const trendValues = __TREND_VALUES_JSON__;
+
+    function renderEmptyTrend(message) {
+      const shell = document.getElementById('trend-shell');
+      shell.innerHTML = `<div class="empty-block">${message}</div>`;
+    }
+
+    function drawTrendChart() {
+      if (!Array.isArray(trendLabels) || !Array.isArray(trendValues) || trendLabels.length === 0 || trendValues.length === 0) {
+        renderEmptyTrend('暂无趋势数据');
+        return;
+      }
+
+      const canvas = document.getElementById('trend-chart');
+      if (!canvas) {
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      const padding = { top: 20, right: 24, bottom: 54, left: 44 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+      const maxValue = Math.max(...trendValues, 1);
+      const stepX = trendLabels.length > 1 ? chartWidth / (trendLabels.length - 1) : 0;
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = '#dbe5f1';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (chartHeight / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      trendValues.forEach((value, index) => {
+        const x = padding.left + stepX * index;
+        const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+
+      trendValues.forEach((value, index) => {
+        const x = padding.left + stepX * index;
+        const y = padding.top + chartHeight - (value / maxValue) * chartHeight;
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(value), x, y - 10);
+
+        ctx.fillStyle = '#64748b';
+        ctx.save();
+        ctx.translate(x, height - 18);
+        ctx.rotate(-0.35);
+        ctx.fillText(trendLabels[index], 0, 0);
+        ctx.restore();
+      });
+    }
+
+    drawTrendChart();
+  </script>
+</body>
+</html>
