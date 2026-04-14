@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -12,7 +13,7 @@ func runGit(args ...string) ([]byte, error) {
 		"-c", "core.quotepath=false",
 	}
 	cmd := exec.Command("git", append(prefix, args...)...)
-	cmd.Env = append(cmd.Env, "LC_ALL=C.UTF-8", "LANG=C.UTF-8")
+	cmd.Env = append(os.Environ(), "LC_ALL=C.UTF-8", "LANG=C.UTF-8")
 	return cmd.CombinedOutput()
 }
 

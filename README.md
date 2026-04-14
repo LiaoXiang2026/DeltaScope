@@ -1,6 +1,6 @@
 ﻿# DeltaScope
 
-DeltaScope 是一个面向 Git 仓库的缺陷分析与代码变更风险评估 CLI 工具，使用 Go 开发。
+DeltaScope 是一个面向 Git 仓库的缺陷分析与代码变更风险评估工具，使用 Go 开发，当前同时提供 CLI 和 Wails 桌面端。
 
 当前版本聚焦两个核心场景：
 
@@ -39,15 +39,69 @@ DeltaScope 是一个面向 Git 仓库的缺陷分析与代码变更风险评估 
 - 生成测试场景建议
 - 输出 `review.md`
 
-## 构建
+## 启动项目
+
+### 1. 启动桌面端开发模式
+
+首次使用前，先安装 Wails CLI：
+
+```bash
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+```
+
+然后在项目根目录启动：
+
+```bash
+"$(go env GOPATH)/bin/wails" dev
+```
+
+说明：
+
+- 会同时启动 Wails 开发进程和前端 Vite 开发服务器
+- 代码修改后会自动热更新
+- 如果本机没有安装前端依赖，命令会自动安装
+
+### 2. 构建桌面端
+
+构建可执行文件但跳过平台打包：
+
+```bash
+"$(go env GOPATH)/bin/wails" build -nopackage -clean
+```
+
+如果只是想验证桌面端是否能编译，这是最稳妥的方式。
+
+### 3. 启动 CLI
+
+构建 CLI：
 
 ```bash
 go build -o deltascope.exe main.go
 ```
 
+查看帮助：
+
+```bash
+./deltascope.exe --help
+```
+
+也可以直接构建完整项目：
+
+```bash
+go build ./...
+```
+
 ## 使用方式
 
-查看帮助：
+### 桌面端
+
+当前程序行为如下：
+
+- 直接运行 `deltascope` 会启动桌面端
+- 运行 `deltascope desktop` 也会启动桌面端
+- 运行 `deltascope analyze ...` 或 `deltascope review ...` 会进入 CLI 模式
+
+### CLI 查看帮助
 
 ```bash
 ./deltascope.exe --help
@@ -83,7 +137,7 @@ deltascope analyze --repo . --from 2026-01-01 --to 2026-03-31 --out ./deltascope
 
 - `--since` 与 `--from/--to` 不能同时使用
 - 不传时间参数时，默认分析最近 6 个月
-- 不带子命令直接运行时，默认执行 `analyze`
+- 当前版本中，不带子命令直接运行会启动桌面端；如需 CLI，请显式使用 `analyze`
 
 ### review 示例
 
@@ -154,15 +208,26 @@ deltascope review \
 
 ```text
 .
+├── app.go
 ├── main.go
 ├── go.mod
 ├── dashboard.html
 ├── backend/
 │   ├── config.go
 │   └── git.go
+├── frontend/
+├── wails.json
 └── docs/
 ```
 
 ## 当前状态
 
-当前仓库实现的是 CLI 版本。桌面版相关内容仍在 `docs/` 中，属于设计和计划文档，不是当前已完成交付的一部分。
+当前仓库已经包含桌面端基础实现：
+
+- Wails 桌面壳
+- React + TailwindCSS 前端
+- 配置页
+- Analyze 页面
+- Review 页面
+
+目前 `analyze` / `review` 的核心逻辑仍主要复用现有 `main.go` 路径，后续可以继续按计划拆分到 `backend/` 的独立文件中。

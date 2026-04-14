@@ -57,12 +57,18 @@ type DefectIssue struct {
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 {
-		if err := runAnalyze(nil); err != nil {
+		if err := launchDesktopApp(); err != nil {
 			exitWithError(err)
 		}
 		return
 	}
 	first := args[0]
+	if runtime.GOOS == "darwin" && strings.HasPrefix(first, "-psn_") {
+		if err := launchDesktopApp(); err != nil {
+			exitWithError(err)
+		}
+		return
+	}
 	if first == "analyze" {
 		if err := runAnalyze(args[1:]); err != nil {
 			exitWithError(err)
@@ -71,6 +77,12 @@ func main() {
 	}
 	if first == "review" {
 		if err := runReview(args[1:]); err != nil {
+			exitWithError(err)
+		}
+		return
+	}
+	if first == "desktop" || first == "gui" {
+		if err := launchDesktopApp(); err != nil {
 			exitWithError(err)
 		}
 		return
@@ -190,16 +202,20 @@ func runAnalyze(args []string) error {
 
 func printUsage() {
 	fmt.Print(`deltascope usage:
+  deltascope
+  deltascope desktop
   deltascope analyze [flags]
   deltascope review [flags]
 
 examples:
+  deltascope
   deltascope analyze --repo . --since 3m --out ./deltascope-reports --charts --json
   deltascope analyze --repo . --from 2026-01-01 --to 2026-03-31 --out ./deltascope-reports
   deltascope review --base origin/develop --head HEAD --api-key $API_KEY
 
 notes:
-  - default command is analyze
+  - running without subcommands launches the desktop app
+  - bare flags still route to analyze for CLI compatibility
   - default time range is last 6 months
 `)
 }
@@ -1237,15 +1253,15 @@ func runReview(args []string) error {
 	spinner := newTerminalSpinner()
 	spinner.Start("正在读取代码变更，请稍候...")
 
-	files, err := collectDiffFiles(*repo, *base, *head)
+	files, err := backend.CollectDiffFiles(*repo, *base, *head)
 	if err != nil {
 		spinner.Stop()
-		return err
+		return fmt.Errorf("collect diff files failed: %w", err)
 	}
-	diff, err := collectDiffContent(*repo, *base, *head)
+	diff, err := backend.CollectDiffContent(*repo, *base, *head)
 	if err != nil {
 		spinner.Stop()
-		return err
+		return fmt.Errorf("collect diff content failed: %w", err)
 	}
 	spinner.Stop()
 
@@ -1271,34 +1287,6 @@ func runReview(args []string) error {
 
 	fmt.Printf("[deltascope] review done\n- review: %s\n", reviewPath)
 	return nil
-}
-
-func collectDiffFiles(repoPath, base, head string) ([]string, error) {
-	out, err := runGit("-C", repoPath, "diff", "--name-only", base+".."+head)
-	if err != nil {
-		return nil, fmt.Errorf("collect diff files failed: %s", strings.TrimSpace(string(out)))
-	}
-	files := make([]string, 0)
-	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			files = append(files, line)
-		}
-	}
-	return files, nil
-}
-
-func collectDiffContent(repoPath, base, head string) (string, error) {
-	out, err := runGit("-C", repoPath, "diff", base+".."+head)
-	if err != nil {
-		return "", fmt.Errorf("collect diff content failed: %s", strings.TrimSpace(string(out)))
-	}
-	s := string(out)
-	const maxLen = 30000
-	if len(s) > maxLen {
-		s = s[:maxLen] + "\n\n[diff truncated due to length limit]"
-	}
-	return s, nil
 }
 
 type aiMessage struct {
